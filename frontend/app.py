@@ -52,8 +52,8 @@ st.markdown(
     }
     </style>
     
-    <div class="main-title">ỨNG DỤNG YOLOv8 TRONG NHẬN DẠNG VÀ PHÂN LOẠI ĐỘ CHÍN TRÁI MÍT</div>
-    <p class="sub-title">Phục vụ Nông nghiệp thông minh 🌾</p>
+    <div class="main-title">AGRI VISION — HỆ THỐNG NHẬN DẠNG VÀ PHÂN LOẠI ĐỘ CHÍN TRÁI MÍT</div>
+    <p class="sub-title">Ứng dụng AI phục vụ Nông nghiệp Thông minh 🌾</p>
     <hr>
     """,
     unsafe_allow_html=True
@@ -130,8 +130,8 @@ with st.sidebar:
         f"""
         <div style="text-align:center; padding-bottom:10px">
              {logo_html}
-            <h3 style="margin:0; color:#6DBE45;">🌾 Nông nghiệp thông minh</h3>
-            <p style="font-size:13px; color:gray;">Ứng dụng AI nhận dạng độ chín trái mít</p>
+            <h3 style="margin:0; color:#6DBE45;">🌿 AgriVision</h3>
+            <p style="font-size:13px; color:gray;">Hệ thống nhận dạng & phân loại độ chín trái mít</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -139,9 +139,9 @@ with st.sidebar:
 
     choice = option_menu(
         None,
-        ["Trang chủ", "Nhận dạng ảnh", "Video/Webcam",
-         "Thống kê", "So sánh YOLOv8", "AI Insight", "Chat Gemini"],
-        icons=["house", "camera", "camera-video", "bar-chart", "activity", "cpu", "chat-dots"],
+        ["Trang chủ", "Phân tích ảnh", "Video/Webcam",
+         "Thống kê", "So sánh YOLOv8", "Chat AgriVision "],
+        icons=["house", "camera", "camera-video", "bar-chart", "activity", "chat-dots"],
         default_index=1,
         styles=menu_styles,
     )
@@ -156,81 +156,181 @@ if choice == "Trang chủ":
     st.info("Chọn mục trong menu bên trái để bắt đầu 👉")
 
 # ---------------- TAB 1: ẢNH ----------------
-elif choice == "Nhận dạng ảnh":
-    st.header("Nhận dạng ảnh tĩnh")
-    col1, col2 = st.columns([1,1])
-    with col1:
-        uploaded_file = st.file_uploader("Chọn ảnh trái mít...", type=["jpg","jpeg","png"])
+elif choice == "Phân tích ảnh":
+    st.header("Phân tích ảnh")
+
+    # === Khu vực upload và chọn ngưỡng ===
+    with st.container():
+        st.markdown("### 🖼️ Chọn ảnh trái mít cần phân tích")
+        uploaded_file = st.file_uploader("Tải ảnh lên...", type=["jpg", "jpeg", "png"])
         confidence = st.slider("Ngưỡng confidence", 0.1, 1.0, 0.5, 0.05)
-        enable_alert = st.checkbox("🔔 Bật cảnh báo thu hoạch qua email (giả lập)", value=False)
-        analyze_btn = st.button("🔍 Phân tích ảnh")
+        st.markdown("<br>", unsafe_allow_html=True)
+        analyze_btn = st.button("🔍 Bắt đầu phân tích ảnh", use_container_width=True)
 
-    with col2:
-        st.markdown("**Ảnh gốc**")
-        preview = st.empty()
-        st.markdown("**Ảnh kết quả**")
-        out_image = st.empty()
-        st.markdown("**Thống kê nhanh**")
-        stats_box = st.empty()
-
+    # --- Hiển thị ảnh gốc và ảnh kết quả ngang hàng ---
     if uploaded_file:
+        col1, col2 = st.columns(2)
         img = Image.open(uploaded_file).convert("RGB")
-        preview.image(img, use_container_width=True)
+        with col1:
+            st.markdown("**Ảnh gốc**")
+            st.image(img, use_container_width=True)
+        with col2:
+            st.markdown("**Ảnh kết quả nhận dạng**")
+            out_image = st.empty()
 
+    # === Khi nhấn nút "Phân tích ảnh" ===
     if analyze_btn and uploaded_file:
-        with st.spinner("Gửi ảnh tới API, chờ kết quả..."):
-            files = {"file": uploaded_file.getvalue()}
-            try:
-                resp = requests.post(API_URL, files=files, params={"conf": confidence}, timeout=30)
-                resp.raise_for_status()
-                data = resp.json()
-            except Exception as e:
-                st.error(f"Lỗi gọi API: {e}")
-                data = None
+        status_placeholder = st.empty()
+        status_placeholder.info("⏳ Đang xử lý ảnh, vui lòng chờ trong giây lát...")
+        progress = st.progress(0)
+        files = {"file": uploaded_file.getvalue()}
 
+        try:
+            for percent in range(0, 80, 10):
+                time.sleep(0.1)
+                progress.progress(percent)
+
+            resp = requests.post(API_URL, files=files, params={"conf": confidence}, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+
+            for percent in range(80, 101, 10):
+                time.sleep(0.1)
+                progress.progress(percent)
+
+        except Exception as e:
+            st.error(f"Lỗi gọi API: {e}")
+            data = None
+
+        progress.empty()
+        status_placeholder.empty()
+        st.success("✨ Phân tích hoàn tất!")
+
+        # --- Hiển thị kết quả ---
         if data:
-            # show annotated image
             img_data = base64.b64decode(data["image"])
             annotated = Image.open(io.BytesIO(img_data)).convert("RGB")
+            st.session_state.last_data = data
+            st.session_state.last_img = annotated
+
+            # cập nhật ảnh kết quả bên phải
             out_image.image(annotated, use_container_width=True)
 
             detections = data.get("detections", [])
             if not detections:
-                stats_box.warning("Không phát hiện được trái mít nào.")
+                st.warning("⚠️ Không phát hiện được trái mít nào.")
             else:
-                # bảng detections
                 df = pd.DataFrame(detections)
-                stats_box.dataframe(df)
+                row_df = (
+                    df[["label", "confidence"]]
+                    .rename(columns={"label": "Loại", "confidence": "Độ tin cậy"})
+                    .copy()
+                )
 
-                # counts + pie chart
-                labels = df["label"].tolist()
-                count_df = pd.Series(labels).value_counts().rename_axis('Loại').reset_index(name='Số lượng')
-                st.subheader("Thống kê")
-                st.dataframe(count_df)
+                row_df["Độ tin cậy"] = row_df["Độ tin cậy"].map(lambda x: f"{x:.2f}")
 
-                fig, ax = plt.subplots()
-                ax.pie(count_df["Số lượng"], labels=count_df["Loại"], autopct="%1.1f%%", startangle=90)
-                ax.axis("equal")
-                st.pyplot(fig)
 
-                # gợi ý thu hoạch
-                total = count_df["Số lượng"].sum()
-                chin = int(count_df[count_df["Loại"]=="mit_chin"]["Số lượng"].sum()) if "mit_chin" in count_df["Loại"].values else 0
-                ratio = chin / total if total>0 else 0
-                if ratio > 0.7:
-                    st.success("🌾 Gợi ý: Hơn 70% trái chín — nên thu hoạch sớm.")
-                    if enable_alert:
-                        st.info("📤 [Giả lập] Đã gửi email cảnh báo tới user@example.com")
-                elif ratio > 0.4:
-                    st.info("🍈 Nhiều trái đang chín — theo dõi thêm.")
-                else:
-                    st.warning("🟢 Chủ yếu là mít non, chưa nên thu hoạch.")
+                st.markdown("---")
+                st.markdown("### 📊 Kết quả nhận dạng")
+                st.dataframe(
+                    row_df.style.set_properties(**{
+                        'text-align': 'center',
+                        'font-size': '16px'
+                    })
+                )
 
-            # write latest_results.json was created by backend; just show
-            if os.path.exists(LATEST_RESULTS):
-                st.info("✅ Kết quả lưu sẵn cho AI Insight.")
-            else:
-                st.info("⚠️ latest_results.json chưa được lưu (kiểm tra backend).")
+    # === PHẦN 2: Phân tích AI chuyên sâu ===
+    if "last_data" in st.session_state:
+        st.markdown("---")
+        st.markdown("""
+        <div style='background-color:#F9FBE7; padding:15px; border-radius:10px;'>
+            <h4 style='color:#33691E;'>🧠 Phân tích chuyên sâu bởi AgriVision</h4>
+            <p style='color:#4E342E;'>AI hỗ trợ đánh giá độ chín, sâu bệnh và khuyến nghị thu hoạch.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        def summarize_counts_from_latest(latest: dict):
+            preds = latest.get("predictions")
+            if isinstance(preds, list):
+                counts = {}
+                for p in preds:
+                    cls = p.get("class")
+                    if cls:
+                        counts[cls] = counts.get(cls, 0) + 1
+                total = sum(counts.values())
+                return counts, total
+            counts = latest.get("counts", {}) or {}
+            total = latest.get("total", sum(counts.values()))
+            return counts, total
+
+        if os.path.exists(LATEST_RESULTS):
+            with open(LATEST_RESULTS, "r", encoding="utf-8") as f:
+                last = json.load(f)
+            
+            st.markdown("<div style='margin-top:15px'></div>", unsafe_allow_html=True)
+            with st.expander("📦 Xem dữ liệu đầu vào từ hệ thống nhận dạng"):
+                st.json(last)
+
+            counts, total = summarize_counts_from_latest(last)
+
+            if st.button("📊 Yêu cầu AgriVision phân tích", use_container_width=True):
+                status_placeholder = st.empty()
+                status_placeholder.info("🤖 AgriVision đang phân tích dữ liệu, vui lòng chờ...")
+                progress = st.progress(0)
+
+                for p in range(0, 100, 10):
+                    time.sleep(0.1)
+                    progress.progress(p)
+
+                prompt = f"""
+                Bạn là hệ thống AgriVision — nền tảng AI ứng dụng YOLOv8 trong nhận dạng và phân loại độ chín trái mít.  
+                Sau mỗi lần xử lý hình ảnh, bạn sẽ tự động tạo Kết quả phân tích tổng hợp kết quả phân tích.  
+                Dữ liệu đầu vào bạn vừa xử lý:
+                counts={counts}, total={total}.
+                Hãy viết **Kết quả phân tích  tự nhiên, gần gũi nhưng chuyên nghiệp**, thể hiện được năng lực công nghệ của hệ thống AgriVision.  
+                Giọng văn giống như một kỹ sư nông nghiệp đang chia sẻ lại kết quả mà AgriVision vừa quan sát được.
+                Bố cục yêu cầu:
+                1) Tổng quan tình hình nhận dạng (kết quả phát hiện, tỉ lệ mít chín, non, sâu bệnh).  
+                2️) Nhận xét & khuyến nghị thu hoạch (nêu rõ nên thu hay chưa, lý do, lợi ích).  
+                3️) Biện pháp xử lý nếu có mít sâu bệnh (đưa hướng dẫn thực tế, dễ hiểu).  
+                4️) Hỗ trợ kỹ thuật & tính năng thông minh của hệ thống (mô tả cách AgriVision giúp người dùng quản lý và chăm sóc vườn hiệu quả hơn).   
+
+                Phong cách viết:
+                - Mở đầu bằng lời chào: “Chào bạn, tôi là AgriVision – người bạn đồng hành trong vườn mít.”  
+                - Ngôn từ thân thiện, rõ ràng, không rườm rà.  
+                """
+
+                ai_text = None
+                try:
+                    if GEMINI_KEY:
+                        model = genai.GenerativeModel("models/gemini-2.5-flash")
+                        resp = model.generate_content(prompt)
+                        ai_text = getattr(resp, "text", None) or str(resp)
+                    else:
+                        raise RuntimeError("No GEMINI key")
+                except Exception as e:
+                    ai_text = None
+                    st.error(f"Không gọi được Gemini (fallback). Lỗi: {e}")
+
+                progress.empty()
+                status_placeholder.empty()
+                st.success("✨ Phân tích hoàn tất!")
+
+                if not ai_text:
+                    lines = ["Báo cáo phân tích (fallback):"]
+                    if total == 0:
+                        lines.append("- Không phát hiện trái mít nào trong ảnh.")
+                    else:
+                        for k, v in counts.items():
+                            pct = (v / total) * 100 if total > 0 else 0
+                            lines.append(f"- {k}: {v} trái ({pct:.1f}%)")
+                    ai_text = "\n".join(lines)
+
+                st.markdown("### 📑 Kết quả phân tích AI")
+                st.markdown(
+                    f"<div style='background-color:#FAFAFA; padding:15px; border-radius:10px; color:#212121;'>{ai_text}</div>",
+                    unsafe_allow_html=True
+                )
 
 # ---------------- TAB 2: VIDEO / WEBCAM ----------------
 elif choice == "Video/Webcam":
@@ -354,91 +454,10 @@ elif choice == "So sánh YOLOv8":
     else:
         st.warning("Thiếu results_n.csv / results_s.csv trong yolov8/ — export từ quá trình training.")
 
-# ---------------- TAB 5: AI INSIGHT (Gemini phân tích kết quả) ----------------
-elif choice == "AI Insight":
-    st.header("AI Insight — Phân tích kết quả")
-    st.markdown("Tab này đọc file `latest_results.json` (do backend lưu) và dùng Gemini để sinh báo cáo kỹ thuật. Nếu Gemini không sẵn, app dùng fallback phân tích tự động ngắn.")
-
-    def summarize_counts_from_latest(latest: dict):
-        """
-        Hỗ trợ cả 2 định dạng:
-        - Mới:  {"predictions":[{class:..., ...}, ...]}
-        - Cũ:   {"counts": {...}, "total": N}
-        Trả về: counts: dict, total: int
-        """
-        preds = latest.get("predictions")
-        if isinstance(preds, list):  # format mới
-            counts = {}
-            for p in preds:
-                cls = p.get("class")
-                if cls:
-                    counts[cls] = counts.get(cls, 0) + 1
-            total = sum(counts.values())
-            return counts, total
-
-        # format cũ
-        counts = latest.get("counts", {}) or {}
-        total = latest.get("total", sum(counts.values()))
-        return counts, total
-
-    if os.path.exists(LATEST_RESULTS):
-        with open(LATEST_RESULTS, "r", encoding="utf-8") as f:
-            last = json.load(f)
-
-        st.subheader("Kết quả mới nhất")
-        st.json(last)
-
-        # Chuẩn hoá counts/total từ file bất kể format
-        counts, total = summarize_counts_from_latest(last)
-
-        if st.button("Yêu cầu AI phân tích (Gemini)"):
-            prompt = f"""Bạn là chuyên gia nông nghiệp + kỹ sư AI. Dữ liệu đầu vào từ hệ thống nhận dạng trái mít:
-counts={counts}, total={total}.
-Hãy viết báo cáo kỹ thuật (tiếng Việt, formal) gồm:
-1) Tóm tắt tình trạng (tỉ lệ chín/non/sâu bệnh)
-2) Khuyến nghị thu hoạch (khi nào, vì sao)
-3) Biện pháp xử lý nếu thấy sâu bệnh
-4) Gợi ý kỹ thuật cho triển khai tiếp (sampling, thu thập thêm ảnh)
-5) Ngắn gọn kết luận.
-Trả lời chi tiết, ngôn ngữ chuyên môn kỹ thuật nông nghiệp và AI."""
-            st.info("Đang gửi prompt đến Gemini (nếu key hợp lệ)...")
-            try:
-                if GEMINI_KEY:
-                    model = genai.GenerativeModel("models/gemini-2.5-flash")
-                    resp = model.generate_content(prompt)
-                    ai_text = getattr(resp, "text", None) or str(resp)
-                else:
-                    raise RuntimeError("No GEMINI key")
-            except Exception as e:
-                ai_text = None
-                st.error(f"Không gọi được Gemini (fallback). Lỗi: {e}")
-
-            if not ai_text:
-                # fallback local analysis
-                lines = ["Báo cáo phân tích (fallback):"]
-                if total == 0:
-                    lines.append("- Không phát hiện trái mít nào trong ảnh.")
-                else:
-                    for k, v in counts.items():
-                        pct = (v/total)*100 if total > 0 else 0
-                        lines.append(f"- {k}: {v} trái ({pct:.1f}%)")
-                    if counts.get("mit_chin", 0)/total > 0.7:
-                        lines.append("- Khuyến nghị: Thu hoạch sớm trong 1-3 ngày.")
-                    elif counts.get("mit_chin", 0)/total > 0.4:
-                        lines.append("- Khuyến nghị: Theo dõi, có thể thu hoạch lứa nhỏ.")
-                    else:
-                        lines.append("- Khuyến nghị: Chưa thu hoạch; tiếp tục theo dõi.")
-                ai_text = "\n".join(lines)
-
-            st.subheader("Kết quả phân tích AI")
-            st.markdown(ai_text)
-    else:
-        st.info("Chưa có kết quả mới (latest_results.json). Hãy chạy Tab Ảnh để tạo.")
-
-# ---------------- TAB 6: CHAT (Gemini) ----------------
-elif choice == "Chat Gemini":
-    st.header("Chat tự do với Gemini")
-    st.header("Chat tự do với Gemini (hỏi về mô hình, nông nghiệp...)")
+# ---------------- TAB 5: CHAT (Gemini) ----------------
+elif choice == "Chat AgriVision ":
+    st.header("Trợ lý nông nghiệp thông minh - AgriVision 🌾")
+    st.subheader("Trao đổi về mô hình YOLOv8, độ chín trái mít, hoặc kỹ thuật nông nghiệp.")
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
