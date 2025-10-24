@@ -359,15 +359,39 @@ elif choice == "AI Insight":
     st.header("AI Insight — Phân tích kết quả")
     st.markdown("Tab này đọc file `latest_results.json` (do backend lưu) và dùng Gemini để sinh báo cáo kỹ thuật. Nếu Gemini không sẵn, app dùng fallback phân tích tự động ngắn.")
 
+    def summarize_counts_from_latest(latest: dict):
+        """
+        Hỗ trợ cả 2 định dạng:
+        - Mới:  {"predictions":[{class:..., ...}, ...]}
+        - Cũ:   {"counts": {...}, "total": N}
+        Trả về: counts: dict, total: int
+        """
+        preds = latest.get("predictions")
+        if isinstance(preds, list):  # format mới
+            counts = {}
+            for p in preds:
+                cls = p.get("class")
+                if cls:
+                    counts[cls] = counts.get(cls, 0) + 1
+            total = sum(counts.values())
+            return counts, total
+
+        # format cũ
+        counts = latest.get("counts", {}) or {}
+        total = latest.get("total", sum(counts.values()))
+        return counts, total
+
     if os.path.exists(LATEST_RESULTS):
         with open(LATEST_RESULTS, "r", encoding="utf-8") as f:
             last = json.load(f)
+
         st.subheader("Kết quả mới nhất")
         st.json(last)
+
+        # Chuẩn hoá counts/total từ file bất kể format
+        counts, total = summarize_counts_from_latest(last)
+
         if st.button("Yêu cầu AI phân tích (Gemini)"):
-            # build prompt
-            counts = last.get("counts", {})
-            total = sum(counts.values()) if counts else 0
             prompt = f"""Bạn là chuyên gia nông nghiệp + kỹ sư AI. Dữ liệu đầu vào từ hệ thống nhận dạng trái mít:
 counts={counts}, total={total}.
 Hãy viết báo cáo kỹ thuật (tiếng Việt, formal) gồm:
@@ -391,21 +415,21 @@ Trả lời chi tiết, ngôn ngữ chuyên môn kỹ thuật nông nghiệp và
 
             if not ai_text:
                 # fallback local analysis
-                lines = []
-                lines.append("Báo cáo phân tích (fallback):")
+                lines = ["Báo cáo phân tích (fallback):"]
                 if total == 0:
                     lines.append("- Không phát hiện trái mít nào trong ảnh.")
                 else:
                     for k, v in counts.items():
-                        pct = (v/total)*100 if total>0 else 0
+                        pct = (v/total)*100 if total > 0 else 0
                         lines.append(f"- {k}: {v} trái ({pct:.1f}%)")
-                    if counts.get("mit_chin",0)/total > 0.7:
+                    if counts.get("mit_chin", 0)/total > 0.7:
                         lines.append("- Khuyến nghị: Thu hoạch sớm trong 1-3 ngày.")
-                    elif counts.get("mit_chin",0)/total > 0.4:
+                    elif counts.get("mit_chin", 0)/total > 0.4:
                         lines.append("- Khuyến nghị: Theo dõi, có thể thu hoạch lứa nhỏ.")
                     else:
                         lines.append("- Khuyến nghị: Chưa thu hoạch; tiếp tục theo dõi.")
                 ai_text = "\n".join(lines)
+
             st.subheader("Kết quả phân tích AI")
             st.markdown(ai_text)
     else:
