@@ -39,11 +39,11 @@ temp/
 *.log
 
 # --- Model & data files ---
-*.pt
+# *.pt
 *.weights
 *.onnx
 *.ckpt
-yolov8/
+# yolov8/
 runs/
 outputs/
 datasets/
