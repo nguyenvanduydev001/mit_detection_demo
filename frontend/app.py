@@ -334,91 +334,188 @@ elif choice == "Phân tích ảnh":
 
 # ---------------- TAB 2: VIDEO / WEBCAM ----------------
 elif choice == "Video/Webcam":
-    st.header("Video/Webcam (chạy model local)")
-    st.markdown(
-        "**Lưu ý:** tab này dùng model local (yolov8) để demo video/webcam. "
-        "Đảm bảo `yolov8/best.pt` có sẵn nếu muốn chạy local inference."
+    import time
+
+    st.markdown("## 🎥 Phân tích Video / Webcam")
+    st.info(
+        "🤖 **AgriVision** hỗ trợ nhận dạng độ chín trái mít trực tiếp từ video hoặc webcam. "
+        "Hệ thống AI sẽ tự động phân tích từng khung hình và hiển thị kết quả nhận dạng theo thời gian thực, "
+        "giúp bà con quan sát độ chín, sức khỏe và phân loại trái mít một cách trực quan."
     )
 
-    # Checkbox chọn chạy local inference
-    use_local = st.checkbox("Chạy inference local (không qua API)", value=True, key="local_inference_toggle")
+    # --- Chọn chế độ chạy ---
+    use_local = st.toggle("⚙️ Chạy bằng model local (không qua API)", value=True, key="local_inference_toggle")
 
+    # --- Tải mô hình YOLOv8 ---
+    local_model = None
     if use_local:
         from ultralytics import YOLO
 
-        @st.cache_resource
+        @st.cache_resource(show_spinner="🚀 Đang tải mô hình YOLOv8, vui lòng chờ...")
         def load_local_model():
             try:
                 model_path = os.path.join(os.path.dirname(__file__), "..", "yolov8", "best.pt")
                 return YOLO(model_path)
             except Exception as e:
-                st.error(f"Không load được model local: {e}")
+                st.error(f"❌ Không thể tải model local: {e}")
                 return None
 
         local_model = load_local_model()
         if local_model is None:
-            st.error("Không load được model local. Kiểm tra yolov8/best.pt")
-            use_local = False
+            st.stop()
     else:
-        st.info("Sử dụng FastAPI backend để inference video (không khả dụng cho webcam realtime).")
+        st.warning("⚠️ Chế độ inference qua API hiện chưa hỗ trợ video/webcam realtime.")
 
-    source = st.radio("Nguồn:", ["Video file", "Webcam"], horizontal=True, key="video_source")
-    conf_v = st.slider("Confidence", 0.1, 1.0, 0.5, 0.05, key="confidence_slider")
+    # --- Cấu hình ---
+    st.markdown("---")
+    st.markdown("#### ⚙️ Cấu hình phân tích")
+    col1, col2 = st.columns(2)
+    with col1:
+        source = st.radio("Nguồn dữ liệu:", ["🎞️ Video file", "📷 Webcam"], horizontal=True, key="video_source")
+    with col2:
+        conf_v = st.slider("Ngưỡng Confidence", 0.1, 1.0, 0.5, 0.05, key="confidence_slider")
+    st.markdown("---")
 
-    frame_slot = st.empty()  # slot hiển thị frame
+    # --- Khung hiển thị video ---
+    # st.markdown("<div style='background-color:#F8FFF6; padding:10px; border-radius:10px;'>", unsafe_allow_html=True)
+    frame_slot = st.empty()
+    # st.markdown("</div>", unsafe_allow_html=True)
 
-    # ---------------- Video File ----------------
-    if source == "Video file":
-        up = st.file_uploader("Upload video", type=["mp4", "mov", "avi"], key="video_upload")
-        if up:
-            t = tempfile.NamedTemporaryFile(delete=False)
-            t.write(up.read())
-            cap = cv2.VideoCapture(t.name)
+    # ------------------- VIDEO FILE -------------------
+    if source == "🎞️ Video file":
+        uploaded = st.file_uploader("📁 Tải video lên (MP4, MOV, AVI)", type=["mp4", "mov", "avi"])
 
-            stop_video = st.checkbox("Dừng video", value=False, key="stop_video_toggle")
-            while cap.isOpened() and not stop_video:
+        if uploaded:
+            temp = tempfile.NamedTemporaryFile(delete=False)
+            temp.write(uploaded.read())
+            video_path = temp.name
+
+            cap = cv2.VideoCapture(video_path)
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            fps_video = cap.get(cv2.CAP_PROP_FPS) or 24
+            frame_count, total_fps = 0, 0
+            unique_ids = set()
+            frame_skip = 3  # xử lý mỗi 3 khung hình
+
+            st.success("✅ Video đã sẵn sàng! Bắt đầu xử lý...")
+            stop_video = st.checkbox("⏹ Dừng phát video", value=False, key="stop_video_toggle")
+            progress_bar = st.progress(0)
+
+            while cap.isOpened():
+                if st.session_state.get("stop_video_toggle", False):
+                    break
                 ret, frame = cap.read()
                 if not ret:
                     break
-                if use_local and local_model:
-                    res = local_model.track(frame, conf=conf_v, persist=True, tracker="bytetrack.yaml")
-                    frame = res[0].plot()
+
+                frame_count += 1
+                if frame_count % frame_skip != 0:
+                    continue
+
+                start = time.time()
+                if local_model:
+                    results = local_model.track(frame, conf=conf_v, persist=True, tracker="bytetrack.yaml")
+
+                    if results and len(results) > 0:
+                        boxes = results[0].boxes
+                        if getattr(boxes, 'id', None) is not None:
+                            ids = boxes.id.cpu().numpy().astype(int)
+                            unique_ids.update(ids)
+
+                        # Hiển thị label từng loại mít
+                        labels = results[0].names
+                        for box in boxes:
+                            cls_id = int(box.cls[0])
+                            label = labels[cls_id] if cls_id in labels else "mít"
+                            conf = float(box.conf[0])
+                            xyxy = box.xyxy[0].cpu().numpy().astype(int)
+                            cv2.putText(frame, f"{label} {conf:.2f}", (xyxy[0], xyxy[1]-10),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                            cv2.rectangle(frame, (xyxy[0], xyxy[1]), (xyxy[2], xyxy[3]), (0, 255, 0), 2)
+
+                fps = 1 / (time.time() - start + 1e-6)
+                total_fps += fps
+
+                cv2.putText(frame, f"FPS: {fps:.1f}", (15, 35),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame_slot.image(frame_rgb, use_container_width=True)
 
-                stop_video = st.session_state.get("stop_video_toggle", False)
+                time.sleep(1 / fps_video)
+                progress_bar.progress(min(frame_count / total_frames, 1.0))
 
             cap.release()
+            progress_bar.empty()
 
-    # ---------------- Webcam ----------------
+            # --- Thống kê ---
+            detected_count = len(unique_ids)
+            avg_fps = total_fps / max(1, (frame_count // frame_skip))
+            st.markdown("### 📊 Thống kê nhanh")
+            col1, col2, col3 = st.columns(3)
+            col1.metric("🎞️ Tổng khung hình", frame_count)
+            col2.metric("⚡ FPS trung bình", f"{avg_fps:.2f}")
+            col3.metric("🍈 Mít được nhận dạng", detected_count)
+
+            st.info("🔁 Video đã kết thúc quá trình nhận dạng.")
+
+    # ------------------- WEBCAM -------------------
     else:
-        if use_local:
-            # Checkbox bật/tắt webcam (không tạo nhiều lần)
+        if not local_model:
+            st.error("❌ Để bật webcam realtime, vui lòng kích hoạt inference local.")
+        else:
             if "webcam_running" not in st.session_state:
                 st.session_state.webcam_running = False
-            st.session_state.webcam_running = st.checkbox(
-                "Bật webcam", value=False, key="webcam_toggle"
-            )
+
+            st.session_state.webcam_running = st.toggle("📸 Bật webcam realtime", value=False, key="webcam_toggle")
 
             if st.session_state.webcam_running:
                 cap = cv2.VideoCapture(0)
+                st.success("✅ Webcam đang hoạt động...")
+                frame_count, total_fps = 0, 0
+                unique_ids = set()
+
                 while st.session_state.webcam_running:
+                    start = time.time()
                     ret, frame = cap.read()
                     if not ret:
-                        st.warning("Không đọc được webcam.")
+                        st.warning("⚠️ Không thể đọc dữ liệu từ webcam.")
                         break
-                    res = local_model.track(frame, conf=conf_v, persist=True, tracker="bytetrack.yaml")
-                    frame = res[0].plot()
+
+                    results = local_model.track(frame, conf=conf_v, persist=True, tracker="bytetrack.yaml")
+                    if results and len(results) > 0:
+                        boxes = results[0].boxes
+                        if getattr(boxes, 'id', None) is not None:
+                            ids = boxes.id.cpu().numpy().astype(int)
+                            unique_ids.update(ids)
+
+                        labels = results[0].names
+                        for box in boxes:
+                            cls_id = int(box.cls[0])
+                            label = labels[cls_id] if cls_id in labels else "mít"
+                            conf = float(box.conf[0])
+                            xyxy = box.xyxy[0].cpu().numpy().astype(int)
+                            cv2.putText(frame, f"{label} {conf:.2f}", (xyxy[0], xyxy[1]-10),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                            cv2.rectangle(frame, (xyxy[0], xyxy[1]), (xyxy[2], xyxy[3]), (0, 255, 0), 2)
+
+                    fps = 1 / (time.time() - start + 1e-6)
+                    total_fps += fps
+                    frame_count += 1
+
+                    cv2.putText(frame, f"FPS: {fps:.1f}", (15, 35),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     frame_slot.image(frame_rgb, use_container_width=True)
-
-                    # Kiểm tra trạng thái checkbox
-                    if not st.session_state.webcam_running:
-                        break
+                    time.sleep(0.02)
 
                 cap.release()
-        else:
-            st.error("Webcam realtime yêu cầu inference local (Model local). Bật 'Chạy inference local' trước.")
+                avg_fps = total_fps / max(1, frame_count)
+                detected_count = len(unique_ids)
+                st.markdown("### 📊 Thống kê phiên webcam")
+                col1, col2 = st.columns(2)
+                col1.metric("⚡ FPS trung bình", f"{avg_fps:.2f}")
+                col2.metric("🍈 Tổng trái mít được nhận dạng", detected_count)
+                st.info("🛑 Webcam đã tắt.")
 
 # ---------------- TAB 3: MÔ HÌNH & THỐNG KÊ ----------------
 elif choice == "Thống kê":
