@@ -25,7 +25,7 @@ if GEMINI_KEY:
         # proceed: genai may still error at call time
         pass
 
-st.set_page_config(page_title="Nhận dạng và phân loại độ chín trái mít", layout="wide")
+st.set_page_config(page_title="Agri Vision - Hệ Thống Nhận Dạng Vfa Phân Loại Độ Chín Trái Mít", layout="wide")
 st.markdown(
     """
     <style>
@@ -72,7 +72,7 @@ def get_base64_of_bin_file(bin_file):
 logo_path = os.path.join(os.path.dirname(__file__), "logo.png")
 if os.path.exists(logo_path):
     logo_base64 = get_base64_of_bin_file(logo_path)
-    logo_html = f'<img src="data:image/png;base64,{logo_base64}" width="100" style="border-radius:10px; margin-bottom:10px"/>'
+    logo_html = f'<img src="data:image/png;base64,{logo_base64}" width="140" style="border-radius:10px; margin-bottom:10px"/>'
 else:
     logo_html = "<div style='font-size:40px'>🍈</div>"
 
@@ -130,8 +130,6 @@ with st.sidebar:
         f"""
         <div style="text-align:center; padding-bottom:10px">
              {logo_html}
-            <h3 style="margin:0; color:#6DBE45;">🌿 AgriVision</h3>
-            <p style="font-size:13px; color:gray;">Hệ thống nhận dạng & phân loại độ chín trái mít</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -145,6 +143,15 @@ with st.sidebar:
         default_index=1,
         styles=menu_styles,
     )
+    #Reset session_state khi chuyển tab để tránh lỗi hiển thị chồng
+    if "last_tab" not in st.session_state:
+        st.session_state["last_tab"] = choice
+    elif st.session_state["last_tab"] != choice:
+    # Reset trạng thái chỉ khi đổi tab
+        st.session_state["last_tab"] = choice
+        st.session_state.pop("video_done", None)
+        st.session_state.pop("video_json", None)
+        st.session_state.pop("last_data", None)
 
 if choice == "Trang chủ":
     st.markdown("""
@@ -162,8 +169,10 @@ elif choice == "Phân tích ảnh":
     # === Khu vực upload và chọn ngưỡng ===
     with st.container():
         st.markdown("### 🖼️ Chọn ảnh trái mít cần phân tích")
-        uploaded_file = st.file_uploader("Tải ảnh lên...", type=["jpg", "jpeg", "png"])
-        confidence = st.slider("Ngưỡng confidence", 0.1, 1.0, 0.5, 0.05)
+        uploaded_file = st.file_uploader("📁 Tải ảnh lên (JPG, JPEG, PNG)", type=["jpg", "jpeg", "png"])
+        confidence = st.slider("Ngưỡng Confidence",0.1, 1.0, 0.5, 0.05,help="Giá trị này xác định mức độ chắc chắn của mô hình khi nhận dạng. "
+         "Càng cao thì mô hình chỉ hiển thị các đối tượng mà nó tin tưởng mạnh, "
+         "càng thấp thì mô hình hiển thị nhiều hơn nhưng dễ nhiễu.")
         st.markdown("<br>", unsafe_allow_html=True)
         analyze_btn = st.button("🔍 Bắt đầu phân tích ảnh", use_container_width=True)
 
@@ -244,7 +253,7 @@ elif choice == "Phân tích ảnh":
         st.markdown("---")
         st.markdown("""
         <div style='background-color:#F9FBE7; padding:15px; border-radius:10px;'>
-            <h4 style='color:#33691E;'>🧠 Phân tích chuyên sâu bởi AgriVision</h4>
+            <h4 style='color:#33691E;'>🧠 Phân tích ảnh chuyên sâu bởi AgriVision</h4>
             <p style='color:#4E342E;'>AI hỗ trợ đánh giá độ chín, sâu bệnh và khuyến nghị thu hoạch.</p>
         </div>
         """, unsafe_allow_html=True)
@@ -273,9 +282,9 @@ elif choice == "Phân tích ảnh":
 
             counts, total = summarize_counts_from_latest(last)
 
-            if st.button("📊 Yêu cầu AgriVision phân tích", use_container_width=True):
+            if st.button("📊 Yêu cầu AgriVision phân tích ảnh", use_container_width=True):
                 status_placeholder = st.empty()
-                status_placeholder.info("🤖 AgriVision đang phân tích dữ liệu, vui lòng chờ...")
+                status_placeholder.info("🤖 AgriVision đang phân tích dữ liệu từ hình ảnh, vui lòng chờ...")
                 progress = st.progress(0)
 
                 for p in range(0, 100, 10):
@@ -283,8 +292,7 @@ elif choice == "Phân tích ảnh":
                     progress.progress(p)
 
                 prompt = f"""
-                Bạn là hệ thống AgriVision — nền tảng AI ứng dụng YOLOv8 trong nhận dạng và phân loại độ chín trái mít.  
-                Sau mỗi lần xử lý hình ảnh, bạn sẽ tự động tạo Kết quả phân tích tổng hợp kết quả phân tích.  
+                Bạn là hệ thống AgriVision — nền tảng AI ứng dụng YOLOv8 trong nhận dạng và phân loại độ chín trái mít.Sau mỗi lần xử lý hình ảnh, bạn sẽ tự động tạo Kết quả phân tích tổng hợp kết quả phân tích.  
                 Dữ liệu đầu vào bạn vừa xử lý:
                 counts={counts}, total={total}.
                 Hãy viết **Kết quả phân tích  tự nhiên, gần gũi nhưng chuyên nghiệp**, thể hiện được năng lực công nghệ của hệ thống AgriVision.  
@@ -294,7 +302,8 @@ elif choice == "Phân tích ảnh":
                 2️) Nhận xét & khuyến nghị thu hoạch (nêu rõ nên thu hay chưa, lý do, lợi ích).  
                 3️) Biện pháp xử lý nếu có mít sâu bệnh (đưa hướng dẫn thực tế, dễ hiểu).  
                 4️) Hỗ trợ kỹ thuật & tính năng thông minh của hệ thống (mô tả cách AgriVision giúp người dùng quản lý và chăm sóc vườn hiệu quả hơn).   
-
+                5) Giới thiệu ngắn về vai trò của AgriVision trong việc hỗ trợ bạn theo dõi vườn qua hình ảnh.
+                
                 Phong cách viết:
                 - Mở đầu bằng lời chào: “Chào bạn, tôi là AgriVision – người bạn đồng hành trong vườn mít.”  
                 - Ngôn từ thân thiện, rõ ràng, không rườm rà.  
@@ -334,188 +343,263 @@ elif choice == "Phân tích ảnh":
 
 # ---------------- TAB 2: VIDEO / WEBCAM ----------------
 elif choice == "Video/Webcam":
-    import time
+    import time, json, tempfile, os, cv2
+    from ultralytics import YOLO
 
     st.markdown("## 🎥 Phân tích Video / Webcam")
     st.info(
-        "🤖 **AgriVision** hỗ trợ nhận dạng độ chín trái mít trực tiếp từ video hoặc webcam. "
-        "Hệ thống AI sẽ tự động phân tích từng khung hình và hiển thị kết quả nhận dạng theo thời gian thực, "
-        "giúp bà con quan sát độ chín, sức khỏe và phân loại trái mít một cách trực quan."
+        "🤖 **AgriVision** nhận dạng độ chín trái mít trực tiếp từ video hoặc webcam. "
+        "Video được xử lý bằng mô hình YOLOv8, hiển thị bounding box, label và JSON realtime bên cạnh."
     )
 
-    # --- Chọn chế độ chạy ---
-    use_local = st.toggle("⚙️ Chạy bằng model local (không qua API)", value=True, key="local_inference_toggle")
+    # --- Tải model ---
+    @st.cache_resource(show_spinner="🚀 Đang tải mô hình YOLOv8...")
+    def load_model():
+        model_path = os.path.join(os.path.dirname(__file__), "..", "yolov8", "best.pt")
+        return YOLO(model_path)
 
-    # --- Tải mô hình YOLOv8 ---
-    local_model = None
-    if use_local:
-        from ultralytics import YOLO
-
-        @st.cache_resource(show_spinner="🚀 Đang tải mô hình YOLOv8, vui lòng chờ...")
-        def load_local_model():
-            try:
-                model_path = os.path.join(os.path.dirname(__file__), "..", "yolov8", "best.pt")
-                return YOLO(model_path)
-            except Exception as e:
-                st.error(f"❌ Không thể tải model local: {e}")
-                return None
-
-        local_model = load_local_model()
-        if local_model is None:
-            st.stop()
-    else:
-        st.warning("⚠️ Chế độ inference qua API hiện chưa hỗ trợ video/webcam realtime.")
+    model = load_model()
 
     # --- Cấu hình ---
     st.markdown("---")
-    st.markdown("#### ⚙️ Cấu hình phân tích")
     col1, col2 = st.columns(2)
     with col1:
-        source = st.radio("Nguồn dữ liệu:", ["🎞️ Video file", "📷 Webcam"], horizontal=True, key="video_source")
+        source = st.radio("Nguồn dữ liệu:", ["🎞️ Video file", "📷 Webcam"], horizontal=True)
     with col2:
-        conf_v = st.slider("Ngưỡng Confidence", 0.1, 1.0, 0.5, 0.05, key="confidence_slider")
-    st.markdown("---")
+        conf_v = st.slider("Ngưỡng Confidence",0.1, 1.0, 0.5, 0.05,
+        help="Giá trị này xác định mức độ chắc chắn của mô hình khi nhận dạng. "
+         "Càng cao thì mô hình chỉ hiển thị các đối tượng mà nó tin tưởng mạnh, "
+         "càng thấp thì mô hình hiển thị nhiều hơn nhưng dễ nhiễu."
+)
 
-    # --- Khung hiển thị video ---
-    # st.markdown("<div style='background-color:#F8FFF6; padding:10px; border-radius:10px;'>", unsafe_allow_html=True)
-    frame_slot = st.empty()
-    # st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("---")
+    if source == "📷 Webcam":
+        st.session_state["video_done"] = False
+        st.session_state.pop("video_json", None)
+
 
     # ------------------- VIDEO FILE -------------------
     if source == "🎞️ Video file":
         uploaded = st.file_uploader("📁 Tải video lên (MP4, MOV, AVI)", type=["mp4", "mov", "avi"])
 
         if uploaded:
-            temp = tempfile.NamedTemporaryFile(delete=False)
-            temp.write(uploaded.read())
-            video_path = temp.name
+            temp_input = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+            temp_input.write(uploaded.read())
+            video_path = temp_input.name
 
-            cap = cv2.VideoCapture(video_path)
-            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            fps_video = cap.get(cv2.CAP_PROP_FPS) or 24
-            frame_count, total_fps = 0, 0
-            unique_ids = set()
-            frame_skip = 3  # xử lý mỗi 3 khung hình
+            st.video(video_path)
+            st.success("✅ Video đã tải xong! Bấm nút dưới để bắt đầu phân tích.")
 
-            st.success("✅ Video đã sẵn sàng! Bắt đầu xử lý...")
-            stop_video = st.checkbox("⏹ Dừng phát video", value=False, key="stop_video_toggle")
-            progress_bar = st.progress(0)
+            if st.button("▶️ Bắt đầu phân tích video"):
+                cap = cv2.VideoCapture(video_path)
+                fps = int(cap.get(cv2.CAP_PROP_FPS)) or 24
 
-            while cap.isOpened():
-                if st.session_state.get("stop_video_toggle", False):
-                    break
-                ret, frame = cap.read()
-                if not ret:
-                    break
+                video_col, json_col = st.columns([3, 2])
+                frame_slot = video_col.empty()
+                json_box = json_col.empty()
+                detections_all = []
 
-                frame_count += 1
-                if frame_count % frame_skip != 0:
-                    continue
+                while cap.isOpened():
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
 
-                start = time.time()
-                if local_model:
-                    results = local_model.track(frame, conf=conf_v, persist=True, tracker="bytetrack.yaml")
+                    results = model.track(frame, conf=conf_v, persist=True, tracker="bytetrack.yaml")
+                    predictions_json = {"predictions": []}
 
                     if results and len(results) > 0:
                         boxes = results[0].boxes
-                        if getattr(boxes, 'id', None) is not None:
-                            ids = boxes.id.cpu().numpy().astype(int)
-                            unique_ids.update(ids)
-
-                        # Hiển thị label từng loại mít
                         labels = results[0].names
                         for box in boxes:
                             cls_id = int(box.cls[0])
-                            label = labels[cls_id] if cls_id in labels else "mít"
+                            label = labels.get(cls_id, "mít")
                             conf = float(box.conf[0])
-                            xyxy = box.xyxy[0].cpu().numpy().astype(int)
-                            cv2.putText(frame, f"{label} {conf:.2f}", (xyxy[0], xyxy[1]-10),
-                                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-                            cv2.rectangle(frame, (xyxy[0], xyxy[1]), (xyxy[2], xyxy[3]), (0, 255, 0), 2)
+                            xyxy = box.xyxy[0].cpu().numpy().astype(float)
+                            x, y, w, h = xyxy[0], xyxy[1], xyxy[2] - xyxy[0], xyxy[3] - xyxy[1]
 
-                fps = 1 / (time.time() - start + 1e-6)
-                total_fps += fps
+                            predictions_json["predictions"].append({
+                                "class": label,
+                                "confidence": round(conf, 3),
+                                "bbox": {
+                                    "x": round(x, 3),
+                                    "y": round(y, 3),
+                                    "width": round(w, 3),
+                                    "height": round(h, 3)
+                                }
+                            })
 
-                cv2.putText(frame, f"FPS: {fps:.1f}", (15, 35),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
+                            # Vẽ khung và nhãn
+                            cv2.rectangle(frame, (int(xyxy[0]), int(xyxy[1])),
+                                          (int(xyxy[2]), int(xyxy[3])), (0, 255, 0), 2)
+                            label_text = f"{label} {conf:.0%}"
+                            (tw, th), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+                            cv2.rectangle(frame, (int(xyxy[0]), int(xyxy[1] - th - 6)),
+                                          (int(xyxy[0] + tw + 4), int(xyxy[1])), (0, 255, 0), -1)
+                            cv2.putText(frame, label_text, (int(xyxy[0] + 2), int(xyxy[1] - 4)),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+
+                    # Hiển thị realtime
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    frame_slot.image(frame_rgb, use_container_width=True)
+
+                    # JSON realtime bên phải
+                    json_html = f"""
+                    <div style='background-color:#f9fafb;padding:10px;border-radius:10px;
+                    border:1px solid #e3e3e3;height:308px;overflow-y:auto;
+                    font-family:monospace;font-size:13px;white-space:pre;'>
+                        {json.dumps(predictions_json, indent=2, ensure_ascii=False)}
+                    </div>
+                    """
+                    json_box.markdown(json_html, unsafe_allow_html=True)
+                    detections_all.append(predictions_json)
+
+                cap.release()
+
+                # Lưu kết quả cuối cùng
+                st.session_state["video_done"] = True
+                st.session_state["video_json"] = detections_all[-1] if detections_all else {}
+    # ---------------- SAU KHI XỬ LÝ XONG VIDEO ----------------
+    if st.session_state.get("video_done", False):
+        latest = st.session_state.get("video_json", {})
+
+        st.markdown("---")
+        st.markdown("""
+        <div style='background-color:#FCFCE3; padding:15px; border-radius:10px; margin-bottom:10px;'>
+            <h4 style='color:#33691E;'>💬 Phân tích video chuyên sâu bởi AgriVision</h4>
+            <p style='color:#4E342E;'>AgriVision tổng hợp và đánh giá kết quả nhận dạng từ video bạn gửi.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        def summarize_video_data(data):
+            preds = data.get("predictions", [])
+            counts = {}
+            for p in preds:
+                cls = p.get("class")
+                if cls:
+                    counts[cls] = counts.get(cls, 0) + 1
+            total = sum(counts.values())
+            return counts, total
+
+        counts, total = summarize_video_data(latest)
+
+        if st.button("📊 Yêu cầu AgriVision phân tích video", use_container_width=True):
+            status = st.empty()
+            progress = st.progress(0)
+            status.info("🤖 AgriVision đang phân tích dữ liệu video...")
+            for p in range(0, 100, 10):
+                time.sleep(0.1)
+                progress.progress(p)
+            progress.empty()
+            status.empty()
+
+            prompt = f"""
+            Bạn là hệ thống AgriVision — nền tảng AI ứng dụng YOLOv8 trong nhận dạng và phân loại độ chín trái mít.Sau mỗi lần xử lý video, bạn sẽ tự động tạo Kết quả phân tích tổng hợp kết quả phân tích.  
+            Dữ liệu đầu vào bạn vừa xử lý:
+            counts={counts}, total={total}.
+            Hãy viết **Kết quả phân tích  tự nhiên, gần gũi nhưng chuyên nghiệp**, thể hiện được năng lực công nghệ của hệ thống AgriVision.  
+            Giọng văn giống như một kỹ sư nông nghiệp đang chia sẻ lại kết quả mà AgriVision vừa quan sát được.
+            Bố cục yêu cầu:
+            1) Tổng quan tình hình nhận dạng (kết quả phát hiện, tỉ lệ mít chín, non, sâu bệnh).  
+            2️) Nhận xét & khuyến nghị thu hoạch (nêu rõ nên thu hay chưa, lý do, lợi ích).  
+            3️) Biện pháp xử lý nếu có mít sâu bệnh (đưa hướng dẫn thực tế, dễ hiểu).  
+            4️) Hỗ trợ kỹ thuật & tính năng thông minh của hệ thống (mô tả cách AgriVision giúp người dùng quản lý và chăm sóc vườn hiệu quả hơn).   
+            5) Giới thiệu ngắn về vai trò của AgriVision trong việc hỗ trợ bạn theo dõi vườn qua video.  
+            Phong cách viết:
+            - Mở đầu bằng lời chào: “Chào bạn, tôi là AgriVision – người bạn đồng hành trong vườn mít.”  
+            - Ngôn từ thân thiện, rõ ràng, không rườm rà.  
+            """
+
+            ai_text = None
+            try:
+                if GEMINI_KEY:
+                    model = genai.GenerativeModel("models/gemini-2.5-flash")
+                    resp = model.generate_content(prompt)
+                    ai_text = getattr(resp, "text", None) or str(resp)
+                else:
+                    ai_text = "Phân tích thủ công: AgriVision chưa kích hoạt Gemini API."
+            except Exception:
+                ai_text = "Không thể gọi Gemini API, hiển thị kết quả tóm tắt thay thế."
+
+            st.markdown("### 🧠 Kết quả phân tích video")
+            st.markdown(
+                f"<div style='background-color:#FAFAFA; padding:15px; border-radius:10px; color:#212121;'>{ai_text}</div>",
+                unsafe_allow_html=True
+            )
+    
+    # ------------------- WEBCAM (CHUẨN HIỂN THỊ) -------------------
+    if source == "📷 Webcam":
+        st.info("Bật webcam của bạn để AgriVision nhận dạng trái mít theo thời gian thực.")
+        run = st.checkbox("▶️ Bắt đầu nhận dạng qua Webcam", value=False)
+
+        video_col, json_col = st.columns([3, 2])
+        frame_slot = video_col.empty()
+        json_box = json_col.empty()
+
+        detections_all = []
+        cap = cv2.VideoCapture(0)
+
+        if run:
+            st.warning("⏹ Dừng nhận dạng bằng cách bỏ chọn checkbox.")
+            while True:
+                ret, frame = cap.read()
+                if not ret or not run:
+                    break
+
+                results = model.predict(frame, conf=conf_v)
+                predictions_json = {"predictions": []}
+
+                if results and len(results) > 0:
+                    boxes = results[0].boxes
+                    labels = results[0].names
+                    for box in boxes:
+                        cls_id = int(box.cls[0])
+                        label = labels.get(cls_id, "mít")
+                        conf = float(box.conf[0])
+                        xyxy = box.xyxy[0].cpu().numpy().astype(float)
+                        x, y, w, h = xyxy[0], xyxy[1], xyxy[2] - xyxy[0], xyxy[3] - xyxy[1]
+
+                        predictions_json["predictions"].append({
+                            "class": label,
+                            "confidence": round(conf, 3),
+                            "bbox": {
+                                "x": round(x, 3),
+                                "y": round(y, 3),
+                                "width": round(w, 3),
+                                "height": round(h, 3)
+                            }
+                        })
+
+                        # Vẽ bounding box và label
+                        cv2.rectangle(frame, (int(xyxy[0]), int(xyxy[1])),
+                                    (int(xyxy[2]), int(xyxy[3])), (0, 255, 0), 2)
+                        label_text = f"{label} {conf:.0%}"
+                        (tw, th), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+                        cv2.rectangle(frame, (int(xyxy[0]), int(xyxy[1] - th - 6)),
+                                    (int(xyxy[0] + tw + 4), int(xyxy[1])), (0, 255, 0), -1)
+                        cv2.putText(frame, label_text, (int(xyxy[0] + 2), int(xyxy[1] - 4)),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame_slot.image(frame_rgb, use_container_width=True)
 
-                time.sleep(1 / fps_video)
-                progress_bar.progress(min(frame_count / total_frames, 1.0))
+                # Hiển thị JSON realtime bên phải
+                formatted_json = json.dumps(predictions_json, indent=2, ensure_ascii=False)
+                json_box.markdown(
+                    f"""
+                    <div style="background-color:#f9fafb;padding:10px;border-radius:10px;
+                    border:1px solid #e3e3e3;height:411px;overflow-y:auto;
+                    font-family:monospace;font-size:13px;white-space:pre;">
+                    {formatted_json}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                detections_all.append(predictions_json)
+                time.sleep(0.05)  # để Streamlit kịp render lại UI
 
             cap.release()
-            progress_bar.empty()
-
-            # --- Thống kê ---
-            detected_count = len(unique_ids)
-            avg_fps = total_fps / max(1, (frame_count // frame_skip))
-            st.markdown("### 📊 Thống kê nhanh")
-            col1, col2, col3 = st.columns(3)
-            col1.metric("🎞️ Tổng khung hình", frame_count)
-            col2.metric("⚡ FPS trung bình", f"{avg_fps:.2f}")
-            col3.metric("🍈 Mít được nhận dạng", detected_count)
-
-            st.info("🔁 Video đã kết thúc quá trình nhận dạng.")
-
-    # ------------------- WEBCAM -------------------
-    else:
-        if not local_model:
-            st.error("❌ Để bật webcam realtime, vui lòng kích hoạt inference local.")
-        else:
-            if "webcam_running" not in st.session_state:
-                st.session_state.webcam_running = False
-
-            st.session_state.webcam_running = st.toggle("📸 Bật webcam realtime", value=False, key="webcam_toggle")
-
-            if st.session_state.webcam_running:
-                cap = cv2.VideoCapture(0)
-                st.success("✅ Webcam đang hoạt động...")
-                frame_count, total_fps = 0, 0
-                unique_ids = set()
-
-                while st.session_state.webcam_running:
-                    start = time.time()
-                    ret, frame = cap.read()
-                    if not ret:
-                        st.warning("⚠️ Không thể đọc dữ liệu từ webcam.")
-                        break
-
-                    results = local_model.track(frame, conf=conf_v, persist=True, tracker="bytetrack.yaml")
-                    if results and len(results) > 0:
-                        boxes = results[0].boxes
-                        if getattr(boxes, 'id', None) is not None:
-                            ids = boxes.id.cpu().numpy().astype(int)
-                            unique_ids.update(ids)
-
-                        labels = results[0].names
-                        for box in boxes:
-                            cls_id = int(box.cls[0])
-                            label = labels[cls_id] if cls_id in labels else "mít"
-                            conf = float(box.conf[0])
-                            xyxy = box.xyxy[0].cpu().numpy().astype(int)
-                            cv2.putText(frame, f"{label} {conf:.2f}", (xyxy[0], xyxy[1]-10),
-                                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-                            cv2.rectangle(frame, (xyxy[0], xyxy[1]), (xyxy[2], xyxy[3]), (0, 255, 0), 2)
-
-                    fps = 1 / (time.time() - start + 1e-6)
-                    total_fps += fps
-                    frame_count += 1
-
-                    cv2.putText(frame, f"FPS: {fps:.1f}", (15, 35),
-                                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
-                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    frame_slot.image(frame_rgb, use_container_width=True)
-                    time.sleep(0.02)
-
-                cap.release()
-                avg_fps = total_fps / max(1, frame_count)
-                detected_count = len(unique_ids)
-                st.markdown("### 📊 Thống kê phiên webcam")
-                col1, col2 = st.columns(2)
-                col1.metric("⚡ FPS trung bình", f"{avg_fps:.2f}")
-                col2.metric("🍈 Tổng trái mít được nhận dạng", detected_count)
-                st.info("🛑 Webcam đã tắt.")
+            st.success("🟢 Webcam đã dừng.")
 
 # ---------------- TAB 3: MÔ HÌNH & THỐNG KÊ ----------------
 elif choice == "Thống kê":
