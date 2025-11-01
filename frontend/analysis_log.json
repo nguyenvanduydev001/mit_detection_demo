@@ -13,5 +13,30 @@
     "timestamp": "2025-10-28T10:31:37.060215",
     "class": "mit_chin",
     "count": 1
+  },
+  {
+    "timestamp": "2025-11-01T11:37:26.467605",
+    "class": "mit_saubenh",
+    "count": 1
+  },
+  {
+    "timestamp": "2025-11-01T15:06:03.933661",
+    "class": "mit_saubenh",
+    "count": 1
+  },
+  {
+    "timestamp": "2025-11-01T15:08:43.375691",
+    "class": "mit_saubenh",
+    "count": 1
+  },
+  {
+    "timestamp": "2025-11-01T15:08:43.375691",
+    "class": "mit_non",
+    "count": 1
+  },
+  {
+    "timestamp": "2025-11-01T15:10:02.432082",
+    "class": "mit_chin",
+    "count": 1
   }
 ]

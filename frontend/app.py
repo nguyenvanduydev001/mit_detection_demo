@@ -13,12 +13,22 @@ import base64
 import pandas as pd
 import matplotlib.pyplot as plt
 import google.generativeai as genai
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
 from datetime import datetime
 from PIL import Image
 from ultralytics import YOLO
 from dotenv import load_dotenv
 from streamlit_option_menu import option_menu
+from reportlab.lib import colors as rl_colors
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet
 
+# Đăng ký font tiếng Việt
+                        
 load_dotenv()
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 if GEMINI_KEY:
@@ -760,30 +770,171 @@ elif choice == "Thống kê":
     else:
         st.caption("Chưa có dữ liệu đủ để lập báo cáo nhanh.")
 
-
-# ---------------- TAB 4: So sánh ----------------
+# ---------------- TAB 4: SO SÁNH YOLOv8 ----------------
 elif choice == "So sánh YOLOv8":
-    st.header("So sánh YOLOv8n vs YOLOv8s")
-    path_n = os.path.join(os.path.dirname(__file__), "..", "yolov8", "results_n.csv")
-    path_s = os.path.join(os.path.dirname(__file__), "..", "yolov8", "results_s.csv")
-    if os.path.exists(path_n) and os.path.exists(path_s):
-        df_n = pd.read_csv(path_n)
-        df_s = pd.read_csv(path_s)
-        metrics = ["metrics/precision(B)", "metrics/recall(B)", "metrics/mAP50(B)"]
-        for m in metrics:
-            if m in df_n.columns and m in df_s.columns:
-                fig, ax = plt.subplots()
-                ax.plot(df_n.index, df_n[m], label="n")
-                ax.plot(df_s.index, df_s[m], label="s")
-                ax.set_title(m)
-                ax.legend()
-                st.pyplot(fig)
-        st.dataframe({
-            "YOLOv8n (last)": df_n.iloc[-1].to_dict(),
-            "YOLOv8s (last)": df_s.iloc[-1].to_dict()
-        })
-    else:
-        st.warning("Thiếu results_n.csv / results_s.csv trong yolov8/ — export từ quá trình training.")
+
+    st.markdown("## ⚖️ So sánh mô hình YOLOv8n và YOLOv8s")
+    st.caption("Đánh giá chi tiết hiệu năng mô hình nhận dạng mít – hỗ trợ chọn mô hình phù hợp cho ứng dụng thực tế.")
+
+    # ======================= UPLOAD FILE =========================
+    st.markdown("### 📂 Tải dữ liệu huấn luyện")
+    col1, col2 = st.columns(2)
+    with col1:
+        uploaded_n = st.file_uploader("Kết quả YOLOv8n", type=["csv"], key="n")
+    with col2:
+        uploaded_s = st.file_uploader("Kết quả YOLOv8s", type=["csv"], key="s")
+
+    # ======================= KIỂM TRA FILE =========================
+    if uploaded_n is None or uploaded_s is None:
+        st.info("⬆️ Vui lòng tải **cả hai file kết quả (.csv)** để hiển thị bảng so sánh và báo cáo.")
+        st.stop()
+
+    # ======================= ĐỌC FILE =========================
+    df_n = pd.read_csv(uploaded_n)
+    df_s = pd.read_csv(uploaded_s)
+
+    # ======================= CHỈ SỐ TỔNG QUAN =========================
+    st.markdown("### 📈 Tổng quan nhanh")
+
+    summary_metrics = [
+        "metrics/precision(B)", "metrics/recall(B)",
+        "metrics/mAP50(B)", "metrics/mAP50-95(B)"
+    ]
+
+    v8n = [df_n[m].iloc[-1] if m in df_n.columns else np.nan for m in summary_metrics]
+    v8s = [df_s[m].iloc[-1] if m in df_s.columns else np.nan for m in summary_metrics]
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("🎯 Precision", f"{v8s[0]*100:.2f}%", delta=f"{(v8s[0]-v8n[0])*100:.2f}%")
+    col2.metric("📊 Recall", f"{v8s[1]*100:.2f}%", delta=f"{(v8s[1]-v8n[1])*100:.2f}%")
+    col3.metric("🔥 mAP50", f"{v8s[2]*100:.2f}%", delta=f"{(v8s[2]-v8n[2])*100:.2f}%")
+
+    st.divider()
+
+    # ======================= BIỂU ĐỒ DẠNG LINE =========================
+    st.markdown("### 📉 Hiệu năng theo Epoch")
+
+    chart_colors = {"n": "#A5D6A7", "s": "#2E7D32"}
+    for metric in summary_metrics[:-1]:
+        if metric in df_n.columns and metric in df_s.columns:
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(y=df_n[metric], mode='lines', name="YOLOv8n", line=dict(color=chart_colors["n"], width=2)))
+            fig.add_trace(go.Scatter(y=df_s[metric], mode='lines', name="YOLOv8s", line=dict(color=chart_colors["s"], width=2)))
+            fig.update_layout(
+                title=metric.replace("metrics/", "").replace("(B)", "").upper(),
+                xaxis_title="Epoch",
+                yaxis_title="Giá trị",
+                template="plotly_white",
+                height=320,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5)
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+
+    # ======================= BIỂU ĐỒ CỘT SO SÁNH =========================
+    st.markdown("### 📊 So sánh hiệu năng trung bình")
+
+    compare_df = pd.DataFrame({
+        "Chỉ số": ["Precision", "Recall", "mAP50", "mAP50-95"],
+        "YOLOv8n": v8n,
+        "YOLOv8s": v8s
+    })
+
+    fig_bar = px.bar(
+        compare_df.melt(id_vars="Chỉ số", var_name="Mô hình", value_name="Giá trị"),
+        x="Chỉ số", y="Giá trị", color="Mô hình",
+        color_discrete_sequence=["#A5D6A7", "#2E7D32"],
+        barmode="group", text="Giá trị"
+    )
+    fig_bar.update_traces(texttemplate="%{text:.3f}", textposition="outside")
+    fig_bar.update_layout(height=350, template="plotly_white")
+    st.plotly_chart(fig_bar, use_container_width=True)
+
+    st.divider()
+
+    # ======================= NHẬN XÉT =========================
+    st.markdown("### 💬 Nhận xét từ AgriVision")
+
+    precision_diff = v8s[0] - v8n[0]
+    recall_diff = v8s[1] - v8n[1]
+    map_diff = v8s[2] - v8n[2]
+
+    insights = []
+    if map_diff > 0.01:
+        insights.append("🚀 YOLOv8s đạt **mAP50 cao hơn**, phù hợp hệ thống cần độ chính xác cao.")
+    elif map_diff < -0.01:
+        insights.append("⚙️ YOLOv8n có **mAP50 tốt hơn nhẹ**, tốc độ nhanh hơn.")
+    if precision_diff > 0.01:
+        insights.append("🎯 YOLOv8s có **Precision cao hơn**, giảm nhận nhầm mít chín.")
+    elif recall_diff > 0.01:
+        insights.append("📊 YOLOv8n có **Recall tốt hơn**, phát hiện được nhiều vật thể hơn.")
+    insights.append("⏱️ YOLOv8n huấn luyện nhanh hơn ~40–60%.")
+    insights.append("🌿 Với thiết bị giới hạn (Jetson, Pi): nên chọn **YOLOv8n**.")
+    insights.append("🌾 Nếu triển khai quy mô lớn: **YOLOv8s** là lựa chọn ưu tiên.")
+
+    for line in insights:
+        st.markdown(line)
+
+    st.divider()
+
+    # ======================= XUẤT FILE PDF =========================
+    st.markdown("### 🧾 Xuất báo cáo PDF")
+
+    def generate_pdf():
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        styles = getSampleStyleSheet()
+        story = []
+
+        story.append(Paragraph("<b>AgriVision - YOLOv8 Model Performance Comparison</b>", styles["Title"]))
+        story.append(Spacer(1, 12))
+        story.append(Paragraph(f"Report generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles["Normal"]))
+        story.append(Spacer(1, 12))
+
+        data = [["Metric", "YOLOv8n", "YOLOv8s"]] + \
+            [[m, f"{v8n[i]:.4f}", f"{v8s[i]:.4f}"] for i, m in enumerate(["Precision", "Recall", "mAP50", "mAP50-95"])]
+
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), rl_colors.HexColor("#C8E6C9")),  # header xanh nhạt
+            ("GRID", (0, 0), (-1, -1), 0.5, rl_colors.grey),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ROWBACKGROUNDS", (0,1), (-1,-1), [rl_colors.whitesmoke, rl_colors.HexColor("#F7FBF7")]),
+        ]))
+        story.append(table)
+        story.append(Spacer(1, 16))
+
+        story.append(Paragraph("<b>Overall Insights:</b>", styles["Heading3"]))
+        english_insights = [
+            "YOLOv8s achieved a higher mAP50, ideal when accuracy is the priority.",
+            "YOLOv8n trains ~40–60% faster, good for lightweight or real-time use.",
+            "For resource-limited devices (Jetson, Raspberry Pi), choose YOLOv8n.",
+            "For large-scale/cloud deployments, YOLOv8s is recommended.",
+        ]
+        for line in english_insights:
+            story.append(Paragraph(line, styles["Normal"]))
+            story.append(Spacer(1, 6))
+
+        story.append(Spacer(1, 20))
+        story.append(Paragraph("AgriVision — AI model evaluation for modern agriculture.", styles["Italic"]))
+
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
+
+    if st.button("📄 Xuất báo cáo PDF"):
+        pdf_buffer = generate_pdf()
+        st.download_button(
+            label="Tải xuống PDF",
+            data=pdf_buffer,
+            file_name="AgriVision_YOLOv8_Report.pdf",
+            mime="application/pdf"
+        )
+
+    st.info("⚠️ Hiện tại, tính năng xuất PDF chỉ hỗ trợ **tiếng Anh**. Văn bản tiếng Việt có thể hiển thị không chính xác.")
 
 # ---------------- TAB 5: CHAT (Gemini) ----------------
 elif choice == "Chat AgriVision ":
