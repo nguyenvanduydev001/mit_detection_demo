@@ -51,7 +51,6 @@ data/
 *.zip
 *.tar.gz
 *.rar
-*.json
 
 # --- Notebook checkpoints ---
 .ipynb_checkpoints/

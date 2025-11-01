@@ -26,9 +26,8 @@ from reportlab.lib import colors as rl_colors
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
-
-# Đăng ký font tiếng Việt
-                        
+from matplotlib.dates import DateFormatter
+                    
 load_dotenv()
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 if GEMINI_KEY:
@@ -693,31 +692,51 @@ elif choice == "Thống kê":
 
     st.divider()
 
-    # ======================= HOẠT ĐỘNG GẦN ĐÂY =========================
+# ======================= HOẠT ĐỘNG GẦN ĐÂY =========================
     st.subheader("📅 Nhật ký hoạt động nhận dạng")
 
     history_path = os.path.join(os.path.dirname(__file__), "analysis_log.json")
+
     if os.path.exists(history_path):
         with open(history_path, "r", encoding="utf-8") as f:
             history = json.load(f)
+
         if isinstance(history, list) and len(history) > 0:
             df_hist = pd.DataFrame(history)
             df_hist["timestamp"] = pd.to_datetime(df_hist["timestamp"])
 
-            fig, ax = plt.subplots(figsize=(4, 2.5))  # 🔹 thu nhỏ biểu đồ
+            # 🎨 Tạo figure với style hiện đại
+            plt.style.use("seaborn-v0_8-whitegrid")
+            fig, ax = plt.subplots(figsize=(6, 3))
 
+            # Màu cho từng lớp
+            colors = {
+                "mit_chin": "#4CAF50",      # Xanh lá
+                "mit_non": "#FF9800",       # Cam
+                "mit_saubenh": "#2196F3"    # Xanh dương
+            }
+
+            # Vẽ từng nhóm class
+            ax.xaxis.set_major_formatter(DateFormatter("%m-%d"))
             for cls_name, group in df_hist.groupby("class"):
-                ax.plot(group["timestamp"], group["count"], marker="o", label=cls_name, linewidth=2)
+                ax.plot(
+                    group["timestamp"], group["count"],
+                    marker="o", markersize=6, linewidth=2.5,
+                    color=colors.get(cls_name, "#9E9E9E"),
+                    label=cls_name.replace("_", " ").capitalize()
+                )
 
-            ax.legend(fontsize=8, loc="upper left", frameon=False)
-            ax.set_ylabel("Số lượng phát hiện", fontsize=9)
-            ax.set_title("Xu hướng nhận dạng mít theo thời gian", fontsize=11)
+            # Cấu hình giao diện
+            ax.legend(fontsize=9, loc="upper left", frameon=False)
+            ax.set_ylabel("Số lượng phát hiện", fontsize=10)
+            ax.set_title("Xu hướng nhận dạng mít theo thời gian", fontsize=12, fontweight="bold", pad=10)
+            ax.tick_params(axis="x", labelrotation=20, labelsize=8)
+            ax.set_xlabel("Thời gian", fontsize=9)
 
-            # ❌ Ẩn trục thời gian
-            ax.set_xlabel("")
-            ax.tick_params(axis="x", which="both", bottom=False, labelbottom=False)
-
+            # Làm mượt layout
+            plt.tight_layout()
             st.pyplot(fig)
+
         else:
             st.caption("📂 Chưa có lịch sử nhận dạng được lưu.")
     else:

@@ -38,5 +38,30 @@
     "timestamp": "2025-11-01T15:10:02.432082",
     "class": "mit_chin",
     "count": 1
+  },
+  {
+    "timestamp": "2025-11-01T16:05:04.987558",
+    "class": "mit_non",
+    "count": 6
+  },
+  {
+    "timestamp": "2025-11-01T16:06:20.603029",
+    "class": "mit_saubenh",
+    "count": 1
+  },
+  {
+    "timestamp": "2025-11-01T16:09:41.080589",
+    "class": "mit_non",
+    "count": 3
+  },
+  {
+    "timestamp": "2025-11-01T16:10:15.241161",
+    "class": "mit_saubenh",
+    "count": 1
+  },
+  {
+    "timestamp": "2025-11-01T16:10:15.241161",
+    "class": "mit_non",
+    "count": 1
   }
 ]
