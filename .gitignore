@@ -1,0 +1,66 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+*.log
+
+# --- Virtual environment ---
+env/
+venv/
+ENV/
+.venv/
+*.env
+.env
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+
+# --- Streamlit cache ---
+.streamlit/
+.cache/
+
+# --- Temporary / runtime ---
+tmp/
+temp/
+*.tmp
+*.bak
+*.old
+*.lock
+*.log
+
+# --- Model & data files ---
+# *.pt
+*.weights
+*.onnx
+*.ckpt
+# yolov8/
+runs/
+outputs/
+datasets/
+data/
+*.zip
+*.tar.gz
+*.rar
+
+# --- Notebook checkpoints ---
+.ipynb_checkpoints/
+
+# --- Compiled docs ---
+build/
+dist/
+site/
+
+# --- Custom ---
+latest_results.json
+frontend/__pycache__/
+backend/__pycache__/
