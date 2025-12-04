@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import API_TITLE, API_DESCRIPTION, API_VERSION
-from .predictor import router_web, router_mobile
+from .predictor import router_web
 from .auth import router as auth_router
 
 
@@ -18,8 +18,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(router_web)      # API cho website
-app.include_router(router_mobile)   # API cho app mobile
+app.include_router(router_web)    
 app.include_router(auth_router)
 
 @app.get("/")

@@ -32,7 +32,7 @@ def show():
     try:
         client = MongoClient(MONGO_URI)
         db = client["mit_detection"]
-        report_logs = db["report_logs"]
+        compare_logs = db["compare_logs"]
     except Exception as e:
         st.warning(f"⚠️ Không thể kết nối MongoDB: {e}")
         st.stop()
@@ -219,7 +219,7 @@ def show():
         st.session_state["pdf_buffer"] = pdf_buffer
 
         try:
-            report_logs.insert_one({
+            compare_logs.insert_one({
                 "timestamp": datetime.now().isoformat(),
                 "username": username,
                 "src_n": uploaded_n.name,

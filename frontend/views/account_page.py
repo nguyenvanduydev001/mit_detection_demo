@@ -83,7 +83,7 @@ def show():
     # --- Thống kê hoạt động ---
     try:
         detections_count = db["analysis_logs"].count_documents({"username": username})
-        reports_count = db["report_logs"].count_documents({"username": username})
+        reports_count = db["compare_logs"].count_documents({"username": username})
         chats_count = db["chat_logs"].count_documents({"username": username})
     except Exception as e:
         st.warning(f"Lỗi tải thống kê: {e}")

@@ -13,6 +13,11 @@ def show():
     chat_img = os.path.join(base_path, ".." , "assets" , "chat-ai.svg")
     logo_path = os.path.join(base_path, ".." , "assets" , "logo.png")
 
+    # --- App Mobile Assets ---
+    promo_img = os.path.join(base_path, "..", "assets", "app-promo.png")
+    qr_img = os.path.join(base_path, "..", "assets", "qr_app.png")
+    apk_file = os.path.join(base_path, "..", "assets", "agri-vision.apk")
+
     # --- Hàm tiện ích ---
     def get_base64_of_bin_file(bin_file):
         with open(bin_file, "rb") as f:
@@ -24,41 +29,6 @@ def show():
         logo_html = f'<img src="data:image/png;base64,{logo_base64}" width="140" style="border-radius:10px; margin-bottom:10px"/>'
     else:
         logo_html = "<div style='font-size:40px'>🍈</div>"
-
-    # # --- Phần đầu trang ---
-    # st.markdown(
-    #     """
-    #     <style>
-    #     .main-title {
-    #         font-size: 20px;
-    #         font-weight: 800;
-    #         text-align: center;
-    #         color: #2E7D32;
-    #         margin-bottom: 0.3em;
-    #         letter-spacing: 0.5px;
-    #     }
-    #     .sub-title {
-    #         text-align: center;
-    #         font-size: 18px;
-    #         color: #555;
-    #         font-style: italic;
-    #         margin-top: 0.5em;
-    #         margin-bottom: 1.5em;
-    #     }
-    #     hr {
-    #         border: none;
-    #         height: 2px;
-    #         background: linear-gradient(to right, #8BC34A, #558B2F);
-    #         margin-bottom: 1.5em;
-    #     }
-    #     </style>
-
-    #     <div class="main-title">AGRI VISION — HỆ THỐNG NHẬN DẠNG VÀ PHÂN LOẠI ĐỘ CHÍN TRÁI MÍT</div>
-    #     <p class="sub-title">Ứng dụng AI phục vụ Nông nghiệp Thông minh</p>
-    #     <hr>
-    #     """,
-    #     unsafe_allow_html=True
-    # )
 
     # --- GIỚI THIỆU TỔNG QUAN ---
     st.markdown(f"""
@@ -187,6 +157,56 @@ def show():
             Trợ lý AI tương tác trực tuyến — giải đáp kỹ thuật, đưa ra gợi ý chăm sóc và hướng dẫn phân tích kết quả trực tiếp trong ứng dụng.
         </p>
         """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style='text-align:center; margin-top:60px; margin-bottom:20px;'>
+        <h2 style='color:#2E7D32; font-size:26px; font-weight:800;'>
+            Tải ứng dụng AgriVision
+        </h2>
+        <p style='color:#555; font-size:16px;'>
+            Trải nghiệm công nghệ AI nhận dạng độ chín trái mít ngay trên điện thoại của bạn.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    colM1, colM2 = st.columns([1.2, 1], vertical_alignment="center")
+
+    # Ảnh mockup mobile
+    with colM1:
+        if os.path.exists(promo_img):
+            st.image(promo_img, use_container_width=True)
+
+    # Tải APK + QR
+    with colM2:
+        st.markdown("""
+            <h4 style='color:#1B5E20; font-size:22px; font-weight:700;'>Tải xuống APK</h4>
+            <p style='color:#555; margin-top:-6px;'>Nhấn để tải và cài đặt ứng dụng AgriVision (chỉ 78MB).</p>
+        """, unsafe_allow_html=True)
+
+        if os.path.exists(apk_file):
+            with open(apk_file, "rb") as f:
+                apk_bytes = f.read()
+
+            st.download_button(
+                label="Tải xuống AgriVision APK",
+                data=apk_bytes,
+                file_name="agri-vision.apk",
+                mime="application/vnd.android.package-archive",
+                use_container_width=True,
+                type="primary"
+            )
+        else:
+            st.error("Không tìm thấy file APK.")
+
+        # QR Code
+        st.markdown("""
+            <h4 style='margin-top:25px; color:#33691E;'>Quét mã QR</h4>
+            <p style='color:#444;'>Dùng camera điện thoại để tải app nhanh.</p>
+        """, unsafe_allow_html=True)
+
+        if os.path.exists(qr_img):
+            st.image(qr_img, width=220)
+
 
     # --- Footer ---
     st.markdown("""
