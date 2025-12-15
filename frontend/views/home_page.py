@@ -16,7 +16,7 @@ def show():
     # --- App Mobile Assets ---
     promo_img = os.path.join(base_path, "..", "assets", "app-promo.png")
     qr_img = os.path.join(base_path, "..", "assets", "qr_app.png")
-    apk_file = os.path.join(base_path, "..", "assets", "agri-vision.apk")
+    apk_file = os.path.join(base_path, "..", "assets", "agri-vision.txt")
 
     # --- Hàm tiện ích ---
     def get_base64_of_bin_file(bin_file):
@@ -190,7 +190,7 @@ def show():
             st.download_button(
                 label="Tải xuống AgriVision APK",
                 data=apk_bytes,
-                file_name="agri-vision.apk",
+                file_name="agri-vision.txt",
                 mime="application/vnd.android.package-archive",
                 use_container_width=True,
                 type="primary"
